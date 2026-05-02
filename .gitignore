@@ -1,0 +1,143 @@
+# =========================================
+# Python
+# =========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Jupyter
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# =========================================
+# Virtual environments
+# =========================================
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# =========================================
+# Secrets / environment files (NEVER commit)
+# =========================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.cer
+secrets.yaml
+secrets.yml
+secrets.json
+credentials.json
+credentials.yaml
+service-account*.json
+*_credentials.json
+*_secret.json
+*.token
+.netrc
+
+# =========================================
+# IDE / editor
+# =========================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.history/
+*.code-workspace
+
+# =========================================
+# OS junk
+# =========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# =========================================
+# Logs
+# =========================================
+*.log
+logs/
+log/
+
+# =========================================
+# Local helper scripts (not part of project)
+# =========================================
+_setup_git.cmd
+_setup_git.log
+
+# =========================================
+# Project-specific data (keep folders, not contents)
+# =========================================
+data/db/*.db
+data/db/*.sqlite
+data/db/*.sqlite3
+data/db/*.db-journal
+data/db/*.db-wal
+data/db/*.db-shm
+data/raw/*
+data/snapshots/*
+data/exports/*
+!data/raw/.gitkeep
+!data/snapshots/.gitkeep
+!data/exports/.gitkeep
+!data/db/schema.sql

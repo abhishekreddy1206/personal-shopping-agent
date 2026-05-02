@@ -1,0 +1,51 @@
+weights:
+  default:
+    match_confidence: 0.25
+    effective_price: 0.20
+    retailer_trust: 0.15
+    seller_trust: 0.10
+    shipping_cost: 0.08
+    shipping_speed: 0.05
+    return_policy: 0.07
+    coupon_confidence: 0.05
+    trend_attractiveness: 0.03
+    learned_preference: 0.02
+    source_confidence: 0.05
+  electronics:
+    match_confidence: 0.30
+    effective_price: 0.22
+    retailer_trust: 0.15
+    shipping_cost: 0.08
+    return_policy: 0.08
+    source_confidence: 0.05
+  clothes_shoes:
+    match_confidence: 0.28
+    effective_price: 0.18
+    retailer_trust: 0.15
+    return_policy: 0.10
+    learned_preference: 0.06
+    source_confidence: 0.05
+
+ranking_lanes:
+  default:
+    - trusted_retail
+  trusted_plus_discovery:
+    - trusted_retail
+    - discovery_context
+  trusted_plus_marketplace:
+    - trusted_retail
+    - marketplace
+  aggressive_deal_hunt:
+    - trusted_retail
+    - discovery_context
+    - marketplace
+    - enrichment_context
+
+labels:
+  - best_overall
+  - cheapest_trusted
+  - best_fast_shipping
+  - best_coupon_assisted
+  - watch_dont_buy_yet
+  - marketplace_best_value
+  - discovery_signal_only

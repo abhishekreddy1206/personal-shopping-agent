@@ -1,0 +1,1 @@
+"""Personal shopping agent package."""

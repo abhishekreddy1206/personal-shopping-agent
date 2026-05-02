@@ -1,0 +1,16 @@
+alerts:
+  min_absolute_drop_dollars: 10
+  min_percent_drop: 5
+  cooldown_hours: 24
+  suppress_duplicate_state: true
+check_frequencies:
+  hot_electronics: every_12_hours
+  normal_electronics: daily
+  clothes_shoes: every_2_days
+  low_urgency: weekly
+trigger_types:
+  - below_target_price
+  - below_target_percent
+  - new_local_low
+  - trusted_offer_improved
+  - coupon_created_meaningful_drop

@@ -1,0 +1,81 @@
+source_modes:
+  default: trusted_plus_discovery
+  allowed:
+    - trusted_only
+    - trusted_plus_discovery
+    - trusted_plus_marketplace
+    - aggressive_deal_hunt
+
+retailers:
+  electronics:
+    - name: amazon
+      trust_tier: high
+      role: truth
+      enabled: true
+    - name: best_buy
+      trust_tier: high
+      role: truth
+      enabled: true
+    - name: walmart
+      trust_tier: high
+      role: truth
+      enabled: true
+    - name: target
+      trust_tier: high
+      role: truth
+      enabled: true
+    - name: costco
+      trust_tier: high
+      role: truth
+      enabled: false
+    - name: newegg
+      trust_tier: high
+      role: truth
+      enabled: true
+    - name: bh_photo
+      trust_tier: high
+      role: truth
+      enabled: true
+  clothes_shoes:
+    - name: nike
+      trust_tier: high
+      role: truth
+      enabled: true
+    - name: adidas
+      trust_tier: high
+      role: truth
+      enabled: false
+    - name: zappos
+      trust_tier: high
+      role: truth
+      enabled: false
+
+discovery_sources:
+  - name: slickdeals
+    trust_tier: medium
+    role: discovery
+    enabled: true
+  - name: price_history
+    trust_tier: medium
+    role: discovery
+    enabled: false
+
+marketplace_sources:
+  - name: ebay
+    trust_tier: medium
+    role: marketplace
+    enabled: true
+  - name: facebook_marketplace
+    trust_tier: medium
+    role: marketplace
+    enabled: false
+
+enrichment_sources:
+  - name: cashback_portal
+    trust_tier: medium
+    role: enrichment
+    enabled: false
+  - name: coupon_aggregator
+    trust_tier: low
+    role: enrichment
+    enabled: false

@@ -1,0 +1,13 @@
+categories:
+  - name: electronics
+    priority: 1
+    matching_strategy: strict_model_first
+    default_check_frequency: daily
+  - name: clothes_shoes
+    priority: 2
+    matching_strategy: variant_aware
+    default_check_frequency: every_2_days
+  - name: general
+    priority: 3
+    matching_strategy: conservative_fallback
+    default_check_frequency: weekly
