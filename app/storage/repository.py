@@ -22,7 +22,11 @@ class Repository:
         product_intent_id = self._create_product_intent(parsed_intent_id, intake.product_intent)
         watch_rule_id = None
         if intake.watch_rule is not None:
-            watch_rule_id = self._create_or_get_watch_rule(product_intent_id, intake.watch_rule)
+            watch_rule_id = self._create_or_get_watch_rule(
+                product_intent_id,
+                intake.watch_rule,
+                category=intake.product_intent.category or intake.parsed_intent.category,
+            )
         return {
             "user_query_id": user_query_id,
             "parsed_intent_id": parsed_intent_id,
@@ -123,7 +127,7 @@ class Repository:
         ).fetchone()
         return dict(row) if row else None
 
-    def _create_or_get_watch_rule(self, product_intent_id: int, watch_rule: WatchRule) -> int:
+    def _create_or_get_watch_rule(self, product_intent_id: int, watch_rule: WatchRule, category: str | None = None) -> int:
         existing = self._find_watch_rule(watch_rule.normalized_subject, watch_rule.target_price)
         if existing is not None:
             return int(existing["id"])
@@ -132,8 +136,8 @@ class Repository:
             INSERT INTO watch_rules (
                 product_intent_id, created_at, updated_at, normalized_subject, user_label,
                 target_price, target_drop_percent, condition_required, source_mode,
-                preferred_sources_json, check_frequency, priority, active, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                category, preferred_sources_json, check_frequency, priority, active, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 product_intent_id,
@@ -145,6 +149,7 @@ class Repository:
                 watch_rule.target_drop_percent,
                 watch_rule.condition_required,
                 watch_rule.source_mode,
+                category,
                 json.dumps(watch_rule.preferred_sources),
                 watch_rule.check_frequency,
                 watch_rule.priority,
@@ -377,15 +382,87 @@ class Repository:
         return [dict(row) for row in rows]
 
     def list_active_watch_items(self) -> list[dict[str, Any]]:
+        # Join the linked watch_rule so the scheduler can honor the original `source_mode`
+        # and `category` instead of guessing from the label string. See docs/flow-audit.md
+        # Issue 5: previously the scheduler hardcoded mode/category and silently produced
+        # zero offers for any non-electronics watch.
         rows = self.conn.execute(
             """
-            SELECT id, created_at, user_label, normalized_subject, target_price, check_frequency, active, notes, watch_rule_id
-            FROM watch_items
-            WHERE active = 1
-            ORDER BY id DESC
+            SELECT
+                wi.id, wi.created_at, wi.user_label, wi.normalized_subject,
+                wi.target_price, wi.check_frequency, wi.active, wi.notes, wi.watch_rule_id,
+                wr.source_mode AS rule_source_mode,
+                wr.category AS rule_category,
+                wr.condition_required AS rule_condition_required
+            FROM watch_items wi
+            LEFT JOIN watch_rules wr ON wr.id = wi.watch_rule_id
+            WHERE wi.active = 1
+            ORDER BY wi.id DESC
             """
         ).fetchall()
         return [dict(row) for row in rows]
+
+    def save_pending_clarification(
+        self,
+        conversation_key: str,
+        raw_query: str,
+        clarification_kind: str,
+        question: str,
+        options: list[str],
+        product_hint: str | None,
+        expected_attribute: str | None,
+        context: dict[str, Any],
+    ) -> None:
+        """Store the latest unresolved clarification for a conversation. Overwrites
+        any prior pending clarification for the same `conversation_key` so a fresh
+        clarification supersedes a stale one. Used by TelegramHandler to survive the
+        per-call handler reconstruction inside `integration_runner.handle_text` —
+        without this, the second Telegram turn never sees the first turn's question.
+        """
+        # INSERT OR REPLACE instead of ON CONFLICT(...) DO UPDATE: the latter is UPSERT
+        # syntax that requires SQLite >= 3.24.0 (June 2018). Some Python builds still ship
+        # older SQLite (e.g. Python 3.7.2 on Windows bundles 3.21.0). Since conversation_key
+        # is the PRIMARY KEY and we always rewrite every column, REPLACE has identical
+        # semantics here.
+        self.conn.execute(
+            """
+            INSERT OR REPLACE INTO pending_clarifications (
+                conversation_key, created_at, raw_query, clarification_kind, question,
+                options_json, product_hint, expected_attribute, context_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                conversation_key,
+                utc_now(),
+                raw_query,
+                clarification_kind,
+                question,
+                json.dumps(options),
+                product_hint,
+                expected_attribute,
+                json.dumps(context),
+            ),
+        )
+        self.conn.commit()
+
+    def load_pending_clarification(self, conversation_key: str) -> dict[str, Any] | None:
+        row = self.conn.execute(
+            "SELECT * FROM pending_clarifications WHERE conversation_key = ?",
+            (conversation_key,),
+        ).fetchone()
+        if row is None:
+            return None
+        record = dict(row)
+        record["options"] = json.loads(record.pop("options_json") or "[]")
+        record["context"] = json.loads(record.pop("context_json") or "{}")
+        return record
+
+    def clear_pending_clarification(self, conversation_key: str) -> None:
+        self.conn.execute(
+            "DELETE FROM pending_clarifications WHERE conversation_key = ?",
+            (conversation_key,),
+        )
+        self.conn.commit()
 
     def add_price_observation(self, watch_item_id: int, offer_id: int | None, effective_price: float | None, availability: str | None, trend_context: dict[str, Any]) -> int:
         cursor = self.conn.execute(

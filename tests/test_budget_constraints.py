@@ -5,6 +5,7 @@ from pathlib import Path
 from app.formatting import format_result
 from app.models.types import EvidenceSnapshot, OfferCandidate, ParsedIntent, ProductIntent, StructuredIntake, UserQuery
 from app.orchestrator.shopping_orchestrator import ShoppingOrchestrator
+from app.parser.intent_parser import IntentParser
 from app.telegram.handler import TelegramHandler
 from app.storage.db import connect, initialize_schema
 from app.storage.repository import Repository
@@ -100,8 +101,19 @@ def test_orchestrator_returns_no_results_when_everything_is_over_budget(tmp_path
 
 
 def test_handler_smoke_query_does_not_surface_over_budget_results(tmp_path) -> None:
+    """Force the registry to return only over-budget offers and verify the handler
+    correctly hides them. Previously this test relied on the real Nike network plus
+    the (now-removed) blanket stub-drop policy; we now stub the registry so the test
+    is deterministic and doesn't depend on Nike's HTML staying parseable.
+    """
     db_path = tmp_path / "handler.db"
     handler = TelegramHandler(db_path=str(db_path))
+    handler.orchestrator.registry = StubRegistry(
+        [
+            make_offer("Nike Vaporfly", 250.0),
+            make_offer("Nike Alphafly", 285.0),
+        ]
+    )
     try:
         payload = handler.handle_message("Best men's running shoes under 120")
     finally:
@@ -110,3 +122,46 @@ def test_handler_smoke_query_does_not_surface_over_budget_results(tmp_path) -> N
     assert payload["budget_summary"]["applied"] is True
     assert payload["message"].startswith("No results found within your $120 budget")
     assert "results" not in payload
+
+
+def test_orchestrator_returns_clarification_without_searching(tmp_path) -> None:
+    orchestrator = build_orchestrator(tmp_path)
+    intake = IntentParser().parse_structured("Find me a good deal on Bose QuietComfort Ultra 2")
+
+    result = orchestrator.execute_structured(intake)
+
+    assert result.needs_clarification is True
+    assert result.clarification is not None
+    assert result.clarification.kind == "product_type"
+    assert result.ranked_offers == []
+
+
+def test_handler_resumes_bose_clarification_with_short_answer(tmp_path) -> None:
+    db_path = tmp_path / "clarification-bose.db"
+    handler = TelegramHandler(db_path=str(db_path))
+    try:
+        first = handler.handle_message("Find me a good deal on Bose QuietComfort Ultra 2")
+        second = handler.handle_message("earbuds")
+    finally:
+        handler.close()
+
+    assert first["needs_clarification"] is True
+    assert first["clarification"]["kind"] == "product_type"
+    assert second["needs_clarification"] is False
+    assert second["source_mode"] == "trusted_plus_discovery"
+
+
+def test_handler_resumes_frame_size_clarification_with_short_answer(tmp_path) -> None:
+    db_path = tmp_path / "clarification-frame.db"
+    handler = TelegramHandler(db_path=str(db_path))
+    try:
+        first = handler.handle_message("Find me the best deal on Samsung The Frame TV")
+        second = handler.handle_message("55 inch")
+    finally:
+        handler.close()
+
+    assert first["needs_clarification"] is True
+    assert first["clarification"]["kind"] == "size"
+    assert second["needs_clarification"] is False
+    assert second["message"]
+    assert second["source_mode"] == "trusted_plus_discovery"

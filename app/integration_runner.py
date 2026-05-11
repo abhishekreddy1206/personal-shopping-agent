@@ -13,10 +13,11 @@ from app.main import resolve_db_path, run_watch_check
 from app.telegram.handler import TelegramHandler
 
 
-def handle_text(text: str, db_path: str | None = None) -> str:
+def handle_text(text: str, db_path: str | None = None, conversation_key: str | None = None) -> str:
     handler = TelegramHandler(db_path=db_path)
     try:
-        payload = handler.handle_message(text)
+        kwargs = {"conversation_key": conversation_key} if conversation_key else {}
+        payload = handler.handle_message(text, **kwargs)
         return format_result(payload)
     finally:
         handler.close()

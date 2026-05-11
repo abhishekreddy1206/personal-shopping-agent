@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS watch_rules (
   target_drop_percent REAL,
   condition_required TEXT,
   source_mode TEXT NOT NULL,
+  category TEXT,
   preferred_sources_json TEXT,
   check_frequency TEXT NOT NULL,
   priority TEXT NOT NULL,
@@ -237,6 +238,18 @@ CREATE TABLE IF NOT EXISTS learned_preferences (
   weight REAL NOT NULL,
   evidence_count INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pending_clarifications (
+  conversation_key TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  raw_query TEXT NOT NULL,
+  clarification_kind TEXT NOT NULL,
+  question TEXT NOT NULL,
+  options_json TEXT,
+  product_hint TEXT,
+  expected_attribute TEXT,
+  context_json TEXT
 );
 
 CREATE TABLE IF NOT EXISTS source_health (

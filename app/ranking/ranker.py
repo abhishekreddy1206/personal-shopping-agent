@@ -37,10 +37,8 @@ class Ranker:
             unknown_price_penalty = 1 if offer.effective_price is None else 0
             discovery_penalty = 1 if lane == "discovery" else 0
             marketplace_penalty = 1 if lane == "marketplace" else 0
-            stub_penalty = 1 if offer.metadata.get("source_mode") == "fallback_stub" else 0
             return (
                 self.LANE_PRIORITY.get(lane, 9),
-                stub_penalty,
                 marketplace_penalty,
                 discovery_penalty,
                 self.CONDITION_PRIORITY.get(offer.condition, 4),
@@ -58,9 +56,7 @@ class Ranker:
         for idx, offer in enumerate(ordered, start=1):
             label = None
             reasons = self._build_reasons(offer)
-            if idx == 1 and offer.metadata.get("source_mode") == "fallback_stub":
-                label = "best_fallback_stub"
-            elif idx == 1 and offer.metadata.get("lane", "trusted_retail") == "trusted_retail":
+            if idx == 1 and offer.metadata.get("lane", "trusted_retail") == "trusted_retail":
                 label = "best_verified_retail"
             elif idx == 1:
                 label = "best_available_signal"
@@ -77,8 +73,6 @@ class Ranker:
             reasons.append("Effective price unavailable from current extraction.")
         if offer.metadata.get("match_score") is not None:
             reasons.append("Title/query match score: {}.".format(offer.metadata.get("match_score")))
-        if offer.metadata.get("source_mode") == "fallback_stub":
-            reasons.append("Placeholder fallback offer; price is a demo estimate until live extraction succeeds.")
         if offer.verification_state:
             reasons.append("Verification state: {}.".format(offer.verification_state))
         if offer.condition:

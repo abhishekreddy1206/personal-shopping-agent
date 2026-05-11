@@ -5,6 +5,16 @@ from typing import Any
 
 
 @dataclass
+class ClarificationRequest:
+    kind: str
+    question: str
+    options: list[str] = field(default_factory=list)
+    product_hint: str | None = None
+    expected_attribute: str | None = None
+    context: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
 class UserQuery:
     raw_text: str
     channel: str = "telegram"
@@ -29,6 +39,8 @@ class ParsedIntent:
     budget_max: float | None = None
     target_price: float | None = None
     filters: dict[str, Any] = field(default_factory=dict)
+    needs_clarification: bool = False
+    clarification: ClarificationRequest | None = None
 
 
 @dataclass
@@ -104,6 +116,7 @@ class StructuredIntake:
     parsed_intent: ParsedIntent
     product_intent: ProductIntent
     watch_rule: WatchRule | None = None
+    pending_clarification: ClarificationRequest | None = None
 
 
 @dataclass
@@ -116,3 +129,5 @@ class ExecutionResult:
     alerts: list[dict[str, Any]] = field(default_factory=list)
     budget_summary: dict[str, Any] = field(default_factory=dict)
     message: str | None = None
+    needs_clarification: bool = False
+    clarification: ClarificationRequest | None = None

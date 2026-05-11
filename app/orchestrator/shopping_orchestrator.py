@@ -21,6 +21,15 @@ class ShoppingOrchestrator:
         intent = intake.parsed_intent
         self.repository.create_structured_intake(intake)
 
+        if intent.needs_clarification and intent.clarification is not None:
+            return ExecutionResult(
+                intent_type=intent.intent_type,
+                category=intent.category,
+                message=intent.clarification.question,
+                needs_clarification=True,
+                clarification=intent.clarification,
+            )
+
         if intent.intent_type == "history_lookup":
             searches = self.repository.list_recent_searches()
             return ExecutionResult(
@@ -63,6 +72,7 @@ class ShoppingOrchestrator:
         summary = self._build_summary(ranked_offers, budget_summary)
         self.repository.update_search_result_summary(search_result_id, summary, notes="Search executed")
         self.repository.update_search_request_status(search_id, "completed")
+        budget_summary = self._attach_lane_summary(ranked_offers, budget_summary)
         return ExecutionResult(
             intent_type=intent.intent_type,
             category=intent.category,
@@ -119,6 +129,19 @@ class ShoppingOrchestrator:
 
     def _build_message(self, ranked_offers: list[RankedOffer], budget_summary: dict) -> str:
         if not budget_summary.get("applied"):
+            lane_summary = budget_summary.get("lane_summary") or {}
+            trusted = lane_summary.get("cheapest_trusted_retail")
+            market = lane_summary.get("cheapest_marketplace")
+            overall = lane_summary.get("best_overall_value")
+            if trusted or market or overall:
+                parts = []
+                if trusted:
+                    parts.append("cheapest trusted retail: {} at ${:.2f}".format(trusted.get("retailer"), trusted.get("effective_price")))
+                if market:
+                    parts.append("cheapest marketplace: {} at ${:.2f}".format(market.get("retailer"), market.get("effective_price")))
+                if overall:
+                    parts.append("best overall: {} at ${:.2f}".format(overall.get("retailer"), overall.get("effective_price")))
+                return "Search executed and stored — {}.".format("; ".join(parts))
             return "Search executed and stored."
 
         budget_max = budget_summary.get("budget_max")
@@ -174,4 +197,32 @@ class ShoppingOrchestrator:
                 "retailer": best.offer.retailer,
                 "effective_price": best.offer.effective_price,
             }
+        lane_summary = budget_summary.get("lane_summary")
+        if lane_summary:
+            summary["lane_summary"] = lane_summary
         return summary
+
+    def _attach_lane_summary(self, ranked_offers: list[RankedOffer], budget_summary: dict) -> dict:
+        lane_summary = {
+            "cheapest_trusted_retail": self._cheapest_ranked_offer_for_lane(ranked_offers, "trusted_retail"),
+            "cheapest_marketplace": self._cheapest_ranked_offer_for_lane(ranked_offers, "marketplace"),
+        }
+        candidates = [item for item in lane_summary.values() if item]
+        lane_summary["best_overall_value"] = min(candidates, key=lambda item: (item.get("effective_price"), item.get("retailer"), item.get("title"))) if candidates else None
+        updated = dict(budget_summary)
+        updated["lane_summary"] = lane_summary
+        return updated
+
+    def _cheapest_ranked_offer_for_lane(self, ranked_offers: list[RankedOffer], lane: str) -> dict | None:
+        matches = [item for item in ranked_offers if (item.offer.metadata.get("lane") or "trusted_retail") == lane and item.offer.effective_price is not None]
+        if not matches:
+            return None
+        best = min(matches, key=lambda item: (float(item.offer.effective_price), item.offer.retailer, item.offer.title))
+        return {
+            "title": best.offer.title,
+            "retailer": best.offer.retailer,
+            "effective_price": best.offer.effective_price,
+            "lane": lane,
+            "condition": best.offer.condition,
+            "verification_state": best.offer.verification_state,
+        }

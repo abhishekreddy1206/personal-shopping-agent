@@ -53,11 +53,21 @@ def format_result(payload: Dict[str, Any]) -> str:
 
     results = payload.get("results", [])
     budget_summary = payload.get("budget_summary") or {}
+    lane_summary = payload.get("lane_summary") or budget_summary.get("lane_summary") or {}
     if not results:
         lines = []
         if payload.get("source_mode"):
             lines.append("Mode: {}".format(payload.get("source_mode")))
         lines.append(payload.get("message") or "No results.")
+        trusted = lane_summary.get("cheapest_trusted_retail")
+        market = lane_summary.get("cheapest_marketplace")
+        overall = lane_summary.get("best_overall_value")
+        if trusted:
+            lines.append("Trusted retail best: {} — {} — ${}".format(trusted.get("title"), trusted.get("retailer"), trusted.get("effective_price")))
+        if market:
+            lines.append("Marketplace best: {} — {} — ${}".format(market.get("title"), market.get("retailer"), market.get("effective_price")))
+        if overall:
+            lines.append("Best overall value: {} — {} — ${}".format(overall.get("title"), overall.get("retailer"), overall.get("effective_price")))
         if budget_summary.get("applied") and budget_summary.get("lowest_over_budget"):
             lowest = budget_summary.get("lowest_over_budget") or {}
             lines.append(
@@ -73,27 +83,28 @@ def format_result(payload: Dict[str, Any]) -> str:
     if payload.get("source_mode"):
         lines.append("Mode: {}".format(payload.get("source_mode")))
     lines.append(payload.get("message") or "Results:")
+    trusted = lane_summary.get("cheapest_trusted_retail")
+    market = lane_summary.get("cheapest_marketplace")
+    overall = lane_summary.get("best_overall_value")
+    if trusted:
+        lines.append("Trusted retail best: {} — {} — ${}".format(trusted.get("title"), trusted.get("retailer"), trusted.get("effective_price")))
+    if market:
+        lines.append("Marketplace best: {} — {} — ${}".format(market.get("title"), market.get("retailer"), market.get("effective_price")))
+    if overall:
+        lines.append("Best overall value: {} — {} — ${}".format(overall.get("title"), overall.get("retailer"), overall.get("effective_price")))
     for item in results[:5]:
         price = item.get("effective_price")
-        is_placeholder = bool(item.get("price_is_placeholder")) or item.get("source_mode") == "fallback_stub"
-        if price is None:
-            price_text = "price unknown"
-        elif is_placeholder:
-            price_text = "demo price ${}".format(price)
-        else:
-            price_text = "${}".format(price)
+        price_text = "${}".format(price) if price is not None else "price unknown"
         confidence = item.get("confidence") or "unknown"
         lane = item.get("lane") or "unknown"
         role = item.get("source_role") or "unknown"
         verification = item.get("verification_state") or "unknown"
         condition = item.get("condition") or item.get("condition_display") or "unknown"
         badge = _lane_badge(lane)
-        stub_tag = " [fallback demo]" if is_placeholder else ""
         lines.append(
-            "- {} {}{} — {} — {} [{} | {} | {} | {}]".format(
+            "- {} {} — {} — {} [{} | {} | {} | {}]".format(
                 badge,
                 item.get("title"),
-                stub_tag,
                 item.get("retailer"),
                 price_text,
                 role,
@@ -102,8 +113,6 @@ def format_result(payload: Dict[str, Any]) -> str:
                 confidence,
             )
         )
-        if is_placeholder and item.get("pricing_note"):
-            lines.append("  note: {}".format(item.get("pricing_note")))
         enrichment = item.get("enrichment") or {}
         pending = [name for name, state in enrichment.items() if state.get("status") != "connected"]
         if pending:
